@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sarcasm & Sentiment Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --card: #16161f;
+    --border: #2a2a3a;
+    --accent-sarcasm: #ff4d6d;
+    --accent-pos: #4ade80;
+    --accent-neg: #f87171;
+    --accent-neutral: #94a3b8;
+    --accent-blue: #60a5fa;
+    --accent-yellow: #fbbf24;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'Space Mono', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Noise overlay ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: 0.4;
+  }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; position: relative; z-index: 1; }
+
+  /* ── Header ── */
+  header { text-align: center; padding: 3rem 0 2.5rem; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: .5rem;
+    background: rgba(255,77,109,.08); border: 1px solid rgba(255,77,109,.25);
+    color: var(--accent-sarcasm); padding: .35rem .9rem; border-radius: 999px;
+    font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
+    margin-bottom: 1.2rem;
+    animation: fadeDown .6s ease both;
+  }
+
+  h1 {
+    font-family: var(--font-head); font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 800;
+    line-height: 1.1; letter-spacing: -.02em;
+    background: linear-gradient(135deg, #fff 30%, #ff4d6d 70%, #fbbf24 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    animation: fadeDown .7s .1s ease both;
+  }
+
+  .subtitle {
+    margin-top: .75rem; color: var(--muted); font-size: .85rem;
+    animation: fadeDown .7s .2s ease both;
+  }
+
+  .layers-strip {
+    display: flex; justify-content: center; gap: 1.5rem; margin-top: 1.5rem; flex-wrap: wrap;
+    animation: fadeDown .7s .3s ease both;
+  }
+  .layer-tag {
+    display: flex; align-items: center; gap: .4rem;
+    font-size: .75rem; color: var(--muted); letter-spacing: .06em;
+  }
+  .layer-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot-sem { background: var(--accent-blue); }
+  .dot-prag { background: var(--accent-sarcasm); }
+  .dot-dis { background: var(--accent-yellow); }
+
+  /* ── Input card ── */
+  .input-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 1.75rem; margin-bottom: 1.5rem;
+    animation: fadeUp .7s .4s ease both;
+  }
+
+  .input-label {
+    font-size: .72rem; color: var(--muted); letter-spacing: .1em;
+    text-transform: uppercase; margin-bottom: .6rem;
+  }
+
+  textarea {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); font-family: var(--font-mono);
+    font-size: .9rem; padding: .9rem 1rem; resize: none; outline: none;
+    transition: border-color .2s;
+    line-height: 1.6;
+  }
+  textarea:focus { border-color: var(--accent-sarcasm); }
+  textarea::placeholder { color: var(--muted); }
+
+  .context-row { margin-top: 1rem; }
+
+  .ctx-toggle {
+    background: none; border: 1px dashed var(--border); color: var(--muted);
+    font-family: var(--font-mono); font-size: .78rem; padding: .4rem .8rem;
+    border-radius: 8px; cursor: pointer; transition: all .2s; letter-spacing: .04em;
+  }
+  .ctx-toggle:hover { border-color: var(--accent-yellow); color: var(--accent-yellow); }
+
+  .ctx-input { margin-top: .75rem; display: none; }
+  .ctx-input.visible { display: block; }
+
+  .btn-row { display: flex; gap: .75rem; margin-top: 1.25rem; flex-wrap: wrap; }
+
+  .btn-analyze {
+    background: var(--accent-sarcasm); color: #fff; border: none;
+    font-family: var(--font-mono); font-size: .85rem; font-weight: 700;
+    padding: .75rem 1.75rem; border-radius: 10px; cursor: pointer;
+    letter-spacing: .06em; transition: all .2s;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .btn-analyze:hover { background: #ff6b85; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(255,77,109,.3); }
+  .btn-analyze:active { transform: translateY(0); }
+  .btn-analyze:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+  .btn-clear {
+    background: transparent; color: var(--muted); border: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: .85rem;
+    padding: .75rem 1.25rem; border-radius: 10px; cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-clear:hover { border-color: var(--text); color: var(--text); }
+
+  .examples-row {
+    display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .75rem;
+    align-items: center;
+  }
+  .examples-label { font-size: .72rem; color: var(--muted); letter-spacing: .08em; }
+  .pill {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--muted); font-family: var(--font-mono); font-size: .72rem;
+    padding: .25rem .65rem; border-radius: 999px; cursor: pointer; transition: all .2s;
+  }
+  .pill:hover { border-color: var(--accent-sarcasm); color: var(--accent-sarcasm); }
+
+  /* ── Results ── */
+  #results { display: none; }
+  #results.visible { display: block; animation: fadeUp .5s ease; }
+
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  @media(max-width:580px) { .result-grid { grid-template-columns: 1fr; } }
+
+  .result-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.25rem 1.4rem;
+  }
+
+  .rc-label {
+    font-size: .68rem; color: var(--muted); letter-spacing: .12em;
+    text-transform: uppercase; margin-bottom: .5rem;
+  }
+  .rc-value {
+    font-family: var(--font-head); font-size: 1.4rem; font-weight: 700;
+    margin-bottom: .25rem;
+  }
+  .rc-score { font-size: .8rem; color: var(--muted); }
+
+  .color-pos { color: var(--accent-pos); }
+  .color-neg { color: var(--accent-neg); }
+  .color-neutral { color: var(--accent-neutral); }
+  .color-sarcasm { color: var(--accent-sarcasm); }
+  .color-blue { color: var(--accent-blue); }
+
+  /* Sarcasm meter */
+  .meter-wrap { margin-top: .75rem; }
+  .meter-track {
+    height: 6px; background: var(--surface); border-radius: 99px; overflow: hidden;
+  }
+  .meter-fill {
+    height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, #fbbf24, #ff4d6d);
+    transition: width .8s cubic-bezier(.16,1,.3,1);
+  }
+  .meter-labels {
+    display: flex; justify-content: space-between;
+    font-size: .65rem; color: var(--muted); margin-top: .3rem;
+  }
+
+  /* Explanation */
+  .explanation-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.25rem 1.4rem; margin-bottom: 1rem;
+  }
+  .explanation-text { font-size: .85rem; line-height: 1.7; color: var(--text); }
+
+  /* Signal list */
+  .signals-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.25rem 1.4rem; margin-bottom: 1rem;
+  }
+  .signal-item {
+    display: flex; align-items: flex-start; gap: .65rem;
+    padding: .6rem 0; border-bottom: 1px solid var(--border); font-size: .8rem;
+    line-height: 1.5;
+  }
+  .signal-item:last-child { border-bottom: none; }
+  .signal-icon { color: var(--accent-sarcasm); flex-shrink: 0; margin-top: .05rem; }
+
+  /* Layer breakdown */
+  .breakdown-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: .75rem; margin-bottom: 1.5rem; }
+  @media(max-width:580px) { .breakdown-grid { grid-template-columns: 1fr; } }
+
+  .breakdown-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1rem 1.1rem;
+  }
+  .bc-title {
+    font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+    margin-bottom: .6rem; display: flex; align-items: center; gap: .4rem;
+  }
+  .bc-body { font-size: .75rem; color: var(--muted); line-height: 1.6; }
+  .word-chip {
+    display: inline-block; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: .15rem .45rem; font-size: .7rem;
+    margin: .15rem .1rem; color: var(--text);
+  }
+
+  /* History */
+  .history-section { margin-top: 2rem; }
+  .history-title {
+    font-size: .72rem; color: var(--muted); letter-spacing: .12em;
+    text-transform: uppercase; margin-bottom: .75rem;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .history-item {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: .9rem 1.1rem; margin-bottom: .5rem;
+    display: flex; gap: 1rem; align-items: flex-start; cursor: pointer;
+    transition: border-color .2s;
+  }
+  .history-item:hover { border-color: var(--accent-sarcasm); }
+  .hi-text { flex: 1; font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hi-badge {
+    flex-shrink: 0; font-size: .68rem; padding: .2rem .6rem; border-radius: 999px;
+    font-weight: 700; letter-spacing: .05em;
+  }
+  .badge-pos { background: rgba(74,222,128,.12); color: var(--accent-pos); }
+  .badge-neg { background: rgba(248,113,113,.12); color: var(--accent-neg); }
+  .badge-neutral { background: rgba(148,163,184,.12); color: var(--accent-neutral); }
+  .badge-sarcasm { background: rgba(255,77,109,.12); color: var(--accent-sarcasm); }
+
+  /* Loader */
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3);
+    border-top-color: #fff; border-radius: 50%; display: none;
+    animation: spin .6s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.5; } }
+
+  .analyzing-text { font-size: .8rem; color: var(--muted); animation: pulse 1.2s infinite; }
+
+  .divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
+
+  /* Verdict banner */
+  .verdict {
+    border-radius: 14px; padding: 1.1rem 1.4rem; margin-bottom: 1rem;
+    display: flex; align-items: center; gap: 1rem;
+    border: 1px solid;
+  }
+  .verdict-sarcasm { background: rgba(255,77,109,.06); border-color: rgba(255,77,109,.3); }
+  .verdict-pos { background: rgba(74,222,128,.06); border-color: rgba(74,222,128,.3); }
+  .verdict-neg { background: rgba(248,113,113,.06); border-color: rgba(248,113,113,.3); }
+  .verdict-neutral { background: rgba(148,163,184,.06); border-color: rgba(148,163,184,.3); }
+  .verdict-emoji { font-size: 2rem; }
+  .verdict-label { font-family: var(--font-head); font-size: 1rem; font-weight: 700; }
+  .verdict-desc { font-size: .78rem; color: var(--muted); margin-top: .2rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="badge">🧠 NLP Project · 3-Layer Analysis</div>
+    <h1>Sarcasm & Sentiment<br>Analyzer</h1>
+    <p class="subtitle">Detects what you really mean — not just what you said.</p>
+    <div class="layers-strip">
+      <div class="layer-tag"><span class="layer-dot dot-sem"></span>Layer 1: Semantics</div>
+      <div class="layer-tag"><span class="layer-dot dot-prag"></span>Layer 2: Pragmatics</div>
+      <div class="layer-tag"><span class="layer-dot dot-dis"></span>Layer 3: Discourse</div>
+    </div>
+  </header>
+
+  <div class="input-card">
+    <div class="input-label">📝 Input Sentence</div>
+    <textarea id="inputText" rows="3" placeholder='e.g. "Great, another exam 😒"'></textarea>
+
+    <div class="context-row">
+      <button class="ctx-toggle" onclick="toggleContext()">+ Add previous message (discourse context)</button>
+      <div class="ctx-input" id="ctxWrap">
+        <div class="input-label" style="margin-top:.75rem">💬 Previous Message (context)</div>
+        <textarea id="contextText" rows="2" placeholder='e.g. "I hate this semester so much"'></textarea>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-analyze" id="analyzeBtn" onclick="runAnalysis()">
+        <span>Analyze</span>
+        <div class="spinner" id="spinner"></div>
+      </button>
+      <button class="btn-clear" onclick="clearAll()">Clear</button>
+      <span class="analyzing-text" id="analyzingText" style="display:none">Processing layers...</span>
+    </div>
+
+    <div class="examples-row" style="margin-top:1rem">
+      <span class="examples-label">Try:</span>
+      <span class="pill" onclick="setExample('Great, another exam 😒', '')">Great, another exam 😒</span>
+      <span class="pill" onclick="setExample('Oh wonderful, the server crashed AGAIN!!', '')">Oh wonderful, server crashed!!</span>
+      <span class="pill" onclick="setExample('I love this product, works perfectly.', '')">I love this product ✓</span>
+      <span class="pill" onclick="setExample('Yeah right, totally loving this Monday traffic 🙄', '')">Yeah right, Monday traffic</span>
+      <span class="pill" onclick="setExample('So great that my flight got cancelled. AMAZING.', '')">Flight cancelled 🙄</span>
+      <span class="pill" onclick="setExample('I am doing fine.', 'I lost my job and failed my exam today')">Context example</span>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+    <div id="verdictBanner" class="verdict"></div>
+
+    <div class="result-grid">
+      <div class="result-card">
+        <div class="rc-label">📊 Surface Sentiment</div>
+        <div class="rc-value" id="surfaceLabel">—</div>
+        <div class="rc-score" id="surfaceScore">Score: —</div>
+        <small style="color:var(--muted);font-size:.7rem;margin-top:.4rem;display:block">Lexicon-only reading</small>
+      </div>
+      <div class="result-card">
+        <div class="rc-label">✅ True Sentiment</div>
+        <div class="rc-value" id="trueLabel">—</div>
+        <div class="rc-score" id="trueScore">Score: —</div>
+        <small style="color:var(--muted);font-size:.7rem;margin-top:.4rem;display:block">After pragmatics + discourse</small>
+      </div>
+    </div>
+
+    <div class="result-card" style="margin-bottom:1rem">
+      <div class="rc-label">🎭 Sarcasm Confidence</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+        <span id="sarcasmLabel" style="font-family:var(--font-head);font-size:1.1rem;font-weight:700">—</span>
+        <span id="sarcasmPct" style="font-size:.85rem;color:var(--muted)">0%</span>
+      </div>
+      <div class="meter-wrap">
+        <div class="meter-track"><div class="meter-fill" id="meterFill" style="width:0%"></div></div>
+        <div class="meter-labels"><span>None</span><span>Likely</span><span>Definite</span></div>
+      </div>
+    </div>
+
+    <div class="explanation-card">
+      <div class="rc-label">💡 Explanation</div>
+      <div class="explanation-text" id="explanationText">—</div>
+    </div>
+
+    <div id="signalsSection" class="signals-card" style="display:none">
+      <div class="rc-label">🚨 Sarcasm Signals Detected</div>
+      <div id="signalsList"></div>
+    </div>
+
+    <div class="breakdown-grid">
+      <div class="breakdown-card">
+        <div class="bc-title"><span class="layer-dot dot-sem"></span><span class="color-blue">Semantics</span></div>
+        <div class="bc-body" id="semDetail">—</div>
+      </div>
+      <div class="breakdown-card">
+        <div class="bc-title"><span class="layer-dot dot-prag"></span><span class="color-sarcasm">Pragmatics</span></div>
+        <div class="bc-body" id="pragDetail">—</div>
+      </div>
+      <div class="breakdown-card">
+        <div class="bc-title"><span class="layer-dot dot-dis"></span><span style="color:var(--accent-yellow)">Discourse</span></div>
+        <div class="bc-body" id="disDetail">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="history-section" id="historySection" style="display:none">
+    <div class="history-title">⏱ Recent Analyses</div>
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<script>
+// ─── Embed Python logic as JS ───
+const POSITIVE_WORDS = {
+  "great":0.8,"amazing":0.9,"wonderful":0.85,"fantastic":0.9,"love":0.8,
+  "excellent":0.85,"brilliant":0.8,"perfect":0.9,"happy":0.75,"awesome":0.85,
+  "good":0.6,"nice":0.6,"beautiful":0.8,"outstanding":0.85,"superb":0.85,
+  "lovely":0.75,"enjoy":0.7,"liked":0.65,"best":0.8,"fun":0.7,"glad":0.7,
+  "pleased":0.65,"terrific":0.8,"cool":0.6,"wow":0.7,"yay":0.75,"excited":0.75,
+  "delighted":0.8,"thrilled":0.8,"fabulous":0.85,"impressive":0.75,"helpful":0.7
+};
+const NEGATIVE_WORDS = {
+  "bad":-0.6,"terrible":-0.85,"horrible":-0.9,"awful":-0.85,"hate":-0.8,
+  "worst":-0.85,"ugly":-0.7,"disgusting":-0.85,"stupid":-0.7,"boring":-0.65,
+  "useless":-0.7,"fail":-0.75,"failed":-0.75,"broken":-0.7,"annoying":-0.65,
+  "pain":-0.6,"miserable":-0.8,"dreadful":-0.85,"pathetic":-0.8,"disappointing":-0.7,
+  "disappointed":-0.7,"disaster":-0.85,"nightmare":-0.8,"ugh":-0.6,"frustrated":-0.7,
+  "upset":-0.65,"angry":-0.75,"waste":-0.7,"hard":-0.4,"difficult":-0.4,
+  "stress":-0.65,"tired":-0.5,"exhausted":-0.65,"sad":-0.7,"depressed":-0.8,
+  "unfortunate":-0.6
+};
+const INTENSIFIERS = {
+  "very":1.3,"really":1.25,"so":1.2,"extremely":1.5,"absolutely":1.4,
+  "totally":1.3,"completely":1.35,"utterly":1.4,"incredibly":1.4,"insanely":1.35,
+  "super":1.25,"quite":1.1,"rather":1.1,"pretty":1.1,"just":1.0,"literally":1.15
+};
+const NEGATORS = new Set(["not","no","never","nobody","nothing","neither","nor",
+  "without","hardly","barely","scarcely","don't","doesn't","didn't","won't",
+  "wouldn't","can't","couldn't","isn't","aren't","wasn't","weren't","shouldn't"]);
+const SARCASM_NEG_EVENTS = ["exam","exams","test","tests","homework","assignment",
+  "deadline","monday","traffic","rain","cold","sick","broke","failed","late",
+  "meeting","presentation","dentist","taxes","bill","bills","lost","crash","error",
+  "bug","rejection","fired","delay","cancelled","broken","spilled","burned","forgot","missed"];
+const SARCASM_COMPLAINT = ["another","yet another","one more","again","as if",
+  "just what","oh great","oh wonderful","oh fantastic","because obviously",
+  "because clearly","totally","definitely","absolutely"];
+const SARCASM_EMOJIS = ["😒","🙄","😑","😤","🤦","😅","💀","🫠","😩","😫","🙃"];
+const DISCOURSE_TRIGGERS = ["hate","dislike","annoyed","frustrated","tired of","sick of",
+  "so stressed","having a bad","terrible day","worst day","can't stand","failed",
+  "lost my","broke my","forgot","running late","missed the","got rejected","fail"];
+
+function tokenize(text) {
+  return text.toLowerCase().match(/[\w']+|[^\w\s]/g) || [];
+}
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function analyzeSemantics(text) {
+  const tokens = tokenize(text);
+  let score = 0; const matched = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    const window = tokens.slice(Math.max(0,i-3), i);
+    const negated = window.some(w => NEGATORS.has(w));
+    const intensity = (i > 0 && INTENSIFIERS[tokens[i-1]]) ? INTENSIFIERS[tokens[i-1]] : 1.0;
+    if (POSITIVE_WORDS[t] !== undefined) {
+      let v = POSITIVE_WORDS[t] * intensity;
+      if (negated) v = -v * 0.7;
+      score += v; matched.push(`'${t}' → ${v > 0 ? '+' : ''}${v.toFixed(2)}`);
+    } else if (NEGATIVE_WORDS[t] !== undefined) {
+      let v = NEGATIVE_WORDS[t] * intensity;
+      if (negated) v = -v * 0.7;
+      score += v; matched.push(`'${t}' → ${v > 0 ? '+' : ''}${v.toFixed(2)}`);
+    }
+  }
+  score = clamp(score, -1, 1);
+  const label = score > 0.15 ? 'Positive' : score < -0.15 ? 'Negative' : 'Neutral';
+  return { score, label, matched };
+}
+
+function detectSarcasm(text, surfaceScore) {
+  const signals = []; let confidence = 0;
+  const lower = text.toLowerCase();
+  const hasPos = surfaceScore > 0.2;
+  const negHits = SARCASM_NEG_EVENTS.filter(w => lower.includes(w));
+  if (hasPos && negHits.length) {
+    signals.push(`Positive words paired with negative event(s): [${negHits.join(', ')}]`);
+    confidence += 0.35;
+  }
+  const emojiHits = SARCASM_EMOJIS.filter(e => text.includes(e));
+  if (emojiHits.length) {
+    signals.push(`Sarcasm-marker emoji(s) detected: ${emojiHits.join(' ')}`);
+    confidence += 0.30;
+  }
+  for (const ph of SARCASM_COMPLAINT) {
+    if (lower.startsWith(ph) || lower.includes(' ' + ph)) {
+      signals.push(`Complaint/irony phrase: '${ph}'`); confidence += 0.20; break;
+    }
+  }
+  if (/[!?]{2,}/.test(text)) {
+    signals.push('Excessive punctuation (!! / ??) — written sarcasm marker'); confidence += 0.10;
+  }
+  const upperCount = [...text].filter(c => c >= 'A' && c <= 'Z').length;
+  if (upperCount > text.length * 0.4 && text.length > 5) {
+    signals.push('Heavy CAPS usage — sarcastic exaggeration'); confidence += 0.15;
+  }
+  if (/\boh\b.{0,10}(great|wonderful|amazing|perfect|fantastic)/i.test(text)) {
+    signals.push("'Oh [positive word]' construction — classic sarcasm pattern"); confidence += 0.30;
+  }
+  if (/\b(yeah right|sure|oh sure|totally|as if)\b/i.test(text)) {
+    signals.push("Dismissive affirmative ('yeah right', 'sure', 'totally') detected"); confidence += 0.20;
+  }
+  confidence = Math.min(1.0, confidence);
+  return { detected: confidence >= 0.35, confidence, signals };
+}
+
+function analyzeDiscourse(text, prev) {
+  if (!prev || !prev.trim()) return { modifier: 0, note: 'No prior context provided.' };
+  const lp = prev.toLowerCase();
+  const hits = DISCOURSE_TRIGGERS.filter(t => lp.includes(t));
+  if (hits.length) {
+    return { modifier: -0.25, note: `Prior message has negative context (${hits.slice(0,2).join(', ')}), suggesting irony/sarcasm.` };
+  }
+  const ps = analyzeSemantics(prev);
+  if (ps.score > 0.3) return { modifier: 0.1, note: 'Prior context is genuinely positive — current sentiment likely authentic.' };
+  return { modifier: 0, note: 'Prior context is neutral; no strong discourse signal.' };
+}
+
+function analyze(text, prev) {
+  const sem = analyzeSemantics(text);
+  const prag = detectSarcasm(text, sem.score);
+  const disc = analyzeDiscourse(text, prev);
+  let trueScore = sem.score;
+  if (prag.detected) {
+    trueScore = -(sem.score * 0.8) + disc.modifier;
+  } else {
+    trueScore = sem.score + disc.modifier;
+    if (!prag.detected && disc.modifier < -0.1 && sem.score > 0.1) {
+      trueScore = sem.score * 0.3 + disc.modifier;
+    }
+  }
+  trueScore = clamp(trueScore, -1, 1);
+  const trueLabel = trueScore > 0.15 ? 'Positive' : trueScore < -0.15 ? 'Negative' : 'Neutral';
+  const explanation = prag.detected
+    ? `Surface words appear ${sem.label.toLowerCase()}, but pragmatic analysis detects sarcasm (confidence: ${Math.round(prag.confidence*100)}%). True intent is likely ${trueLabel.toLowerCase()}.`
+    : `No strong sarcasm detected. Surface sentiment (${sem.label}) reflects true meaning. ${disc.note}`;
+  return { text, surface: sem, pragmatics: prag, discourse: disc,
+           trueScore: Math.round(trueScore * 1000)/1000, trueLabel, explanation };
+}
+
+// ─── UI Logic ───
+let ctxVisible = false;
+const history = [];
+
+function toggleContext() {
+  ctxVisible = !ctxVisible;
+  document.getElementById('ctxWrap').classList.toggle('visible', ctxVisible);
+  document.querySelector('.ctx-toggle').textContent = ctxVisible
+    ? '− Remove context' : '+ Add previous message (discourse context)';
+}
+
+function setExample(text, ctx) {
+  document.getElementById('inputText').value = text;
+  if (ctx) {
+    document.getElementById('contextText').value = ctx;
+    if (!ctxVisible) toggleContext();
+  }
+}
+
+function clearAll() {
+  document.getElementById('inputText').value = '';
+  document.getElementById('contextText').value = '';
+  document.getElementById('results').classList.remove('visible');
+  document.getElementById('results').style.display = 'none';
+}
+
+function sentimentColor(label) {
+  return label === 'Positive' ? 'color-pos' : label === 'Negative' ? 'color-neg' : 'color-neutral';
+}
+
+function scoreBar(score) {
+  const pct = Math.round(((score + 1) / 2) * 100);
+  return `<div style="height:4px;background:var(--surface);border-radius:99px;margin-top:.4rem">
+    <div style="height:100%;width:${pct}%;background:${score>0.15?'var(--accent-pos)':score<-0.15?'var(--accent-neg)':'var(--accent-neutral)'};border-radius:99px;transition:width .6s"></div>
+  </div>`;
+}
+
+async function runAnalysis() {
+  const text = document.getElementById('inputText').value.trim();
+  if (!text) { document.getElementById('inputText').focus(); return; }
+  const prev = document.getElementById('contextText').value.trim();
+
+  const btn = document.getElementById('analyzeBtn');
+  const spinner = document.getElementById('spinner');
+  const analyzingText = document.getElementById('analyzingText');
+  btn.disabled = true; spinner.style.display = 'block';
+  analyzingText.style.display = 'inline';
+
+  await new Promise(r => setTimeout(r, 600)); // simulate processing
+
+  const result = analyze(text, prev);
+  renderResult(result);
+
+  btn.disabled = false; spinner.style.display = 'none';
+  analyzingText.style.display = 'none';
+
+  // Add to history
+  history.unshift(result);
+  if (history.length > 6) history.pop();
+  renderHistory();
+}
+
+function renderResult(r) {
+  // Verdict banner
+  const vEl = document.getElementById('verdictBanner');
+  const sarcasmOrNot = r.pragmatics.detected;
+  const vcls = sarcasmOrNot ? 'verdict-sarcasm' : r.trueLabel === 'Positive' ? 'verdict-pos' : r.trueLabel === 'Negative' ? 'verdict-neg' : 'verdict-neutral';
+  const vEmoji = sarcasmOrNot ? '🎭' : r.trueLabel === 'Positive' ? '😊' : r.trueLabel === 'Negative' ? '😞' : '😐';
+  vEl.className = `verdict ${vcls}`;
+  vEl.innerHTML = `<div class="verdict-emoji">${vEmoji}</div><div>
+    <div class="verdict-label">${sarcasmOrNot ? 'Sarcasm Detected! → ' : ''}${r.trueLabel} Sentiment</div>
+    <div class="verdict-desc">"${r.text}"</div>
+  </div>`;
+
+  // Surface
+  const sEl = document.getElementById('surfaceLabel');
+  sEl.textContent = r.surface.label;
+  sEl.className = `rc-value ${sentimentColor(r.surface.label)}`;
+  document.getElementById('surfaceScore').innerHTML = `Score: ${r.surface.score > 0 ? '+' : ''}${r.surface.score.toFixed(3)}${scoreBar(r.surface.score)}`;
+
+  // True
+  const tEl = document.getElementById('trueLabel');
+  tEl.textContent = r.trueLabel;
+  tEl.className = `rc-value ${sentimentColor(r.trueLabel)}`;
+  document.getElementById('trueScore').innerHTML = `Score: ${r.trueScore > 0 ? '+' : ''}${r.trueScore.toFixed(3)}${scoreBar(r.trueScore)}`;
+
+  // Sarcasm meter
+  const pct = Math.round(r.pragmatics.confidence * 100);
+  document.getElementById('meterFill').style.width = `${pct}%`;
+  document.getElementById('sarcasmPct').textContent = `${pct}%`;
+  const sl = document.getElementById('sarcasmLabel');
+  sl.textContent = r.pragmatics.detected ? 'SARCASM DETECTED' : 'Not sarcastic';
+  sl.className = r.pragmatics.detected ? 'color-sarcasm' : 'color-neutral';
+  sl.style.fontFamily = 'var(--font-head)';
+  sl.style.fontSize = '1.1rem';
+  sl.style.fontWeight = '700';
+
+  // Explanation
+  document.getElementById('explanationText').textContent = r.explanation;
+
+  // Signals
+  const sigSection = document.getElementById('signalsSection');
+  const sigList = document.getElementById('signalsList');
+  if (r.pragmatics.signals.length) {
+    sigSection.style.display = 'block';
+    sigList.innerHTML = r.pragmatics.signals.map(s =>
+      `<div class="signal-item"><span class="signal-icon">⚡</span><span>${s}</span></div>`
+    ).join('');
+  } else {
+    sigSection.style.display = 'none';
+  }
+
+  // Breakdown
+  const matchedHTML = r.surface.matched.length
+    ? r.surface.matched.map(m => `<span class="word-chip">${m}</span>`).join('')
+    : '<span style="color:var(--muted)">No sentiment words found</span>';
+  document.getElementById('semDetail').innerHTML =
+    `<strong style="color:var(--text)">${r.surface.label}</strong> (${r.surface.score > 0 ? '+' : ''}${r.surface.score.toFixed(2)})<br><br>Words:<br>${matchedHTML}`;
+
+  document.getElementById('pragDetail').innerHTML =
+    `<strong style="color:var(--text)">${r.pragmatics.detected ? '🎭 Sarcasm' : '✓ Genuine'}</strong><br>Confidence: ${pct}%<br><br>` +
+    (r.pragmatics.signals.length ? `${r.pragmatics.signals.length} signal(s) found` : 'No signals triggered');
+
+  document.getElementById('disDetail').innerHTML =
+    `<strong style="color:var(--text)">Modifier: ${r.discourse.modifier > 0 ? '+' : ''}${r.discourse.modifier.toFixed(2)}</strong><br><br>${r.discourse.note}`;
+
+  const res = document.getElementById('results');
+  res.style.display = 'block';
+  res.classList.add('visible');
+  res.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderHistory() {
+  const section = document.getElementById('historySection');
+  const list = document.getElementById('historyList');
+  if (!history.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  list.innerHTML = history.map((r, i) => {
+    const cls = r.pragmatics.detected ? 'badge-sarcasm' : r.trueLabel === 'Positive' ? 'badge-pos' : r.trueLabel === 'Negative' ? 'badge-neg' : 'badge-neutral';
+    const label = r.pragmatics.detected ? `🎭 ${r.trueLabel}` : r.trueLabel;
+    return `<div class="history-item" onclick="rerenderHistory(${i})">
+      <div class="hi-text">${r.text}</div>
+      <div class="hi-badge ${cls}">${label}</div>
+    </div>`;
+  }).join('');
+}
+
+function rerenderHistory(i) {
+  renderResult(history[i]);
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) runAnalysis();
+});
+</script>
+</body>
+</html>
