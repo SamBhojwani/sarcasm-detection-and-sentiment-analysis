@@ -10,6 +10,12 @@ A three-layer NLP system that figures out when *"Oh great, another exam 😒"* i
 ![frontend](https://img.shields.io/badge/frontend-vanilla_JS-f7df1e?logo=javascript&logoColor=black)
 ![build](https://img.shields.io/badge/build_step-none-orange)
 
+<p align="center">
+  <a href="https://sambhojwani.github.io/sarcasm-detection-and-sentiment-analysis/">
+    <img src="https://img.shields.io/badge/%E2%96%B6%20try%20it%20live-in%20your%20browser-7f1d1d?style=for-the-badge" alt="Live demo">
+  </a>
+</p>
+
 ---
 
 ## See it in action
@@ -31,10 +37,14 @@ Each row is reproducible — run `python3 analyzer.py` to see the full breakdown
 
 ### Option 1 — Browser (recommended)
 
+Fastest route: **[open the live version](https://sambhojwani.github.io/sarcasm-detection-and-sentiment-analysis/)**. No install, nothing sent to a server, the entire analyzer runs in your tab.
+
+Or run the same file locally:
+
 ```bash
-open app.html        # macOS
-xdg-open app.html    # Linux
-start app.html       # Windows
+open index.html        # macOS
+xdg-open index.html    # Linux
+start index.html       # Windows
 ```
 
 A self-contained, dependency-free web app: dark UI, sarcasm meter, layer-by-layer breakdown cards, signal log, and a session history. The entire analyzer is ported into client-side JavaScript — **no server, no build step, no install.**
@@ -140,7 +150,7 @@ What it gives up: recall on subtle, context-free sarcasm that lacks lexical tell
 | **Frontend** | Single HTML file — vanilla JS, no framework, no build |
 | **Dependencies** | **0** |
 | **External APIs** | None (runs fully offline) |
-| **Files** | `analyzer.py` (~350 LOC) · `app.html` (~700 LOC self-contained) |
+| **Files** | `analyzer.py` (~350 LOC) · `index.html` (~700 LOC self-contained) |
 
 ---
 
