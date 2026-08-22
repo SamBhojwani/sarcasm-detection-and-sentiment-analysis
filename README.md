@@ -1,14 +1,18 @@
-# Sarcasm & Sentiment Analyzer
+<p align="center">
+  <img src="docs/banner.png" alt="Sarcasm Analyzer — surface vs. true sentiment" width="100%">
+</p>
 
 > **Detects what you really mean — not just what you said.**
 
 A three-layer NLP system that figures out when *"Oh great, another exam 😒"* is a complaint, not enthusiasm. Built without `nltk`, `spaCy`, `transformers`, or any other ML library — every decision is **fully traceable**. When the analyzer flags sarcasm, you get the receipt: which words, which emoji, which prior-context trigger fired.
 
-![python](https://img.shields.io/badge/python-3.10+-3776ab?logo=python&logoColor=white)
-![dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen)
-![license](https://img.shields.io/badge/license-MIT-blue)
-![frontend](https://img.shields.io/badge/frontend-vanilla_JS-f7df1e?logo=javascript&logoColor=black)
-![build](https://img.shields.io/badge/build_step-none-orange)
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.10+-3776ab?logo=python&logoColor=white" alt="python">
+  <img src="https://img.shields.io/badge/dependencies-zero-brightgreen" alt="dependencies">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="license">
+  <img src="https://img.shields.io/badge/frontend-vanilla_JS-f7df1e?logo=javascript&logoColor=black" alt="frontend">
+  <img src="https://img.shields.io/badge/build_step-none-orange" alt="build">
+</p>
 
 <p align="center">
   <a href="https://sambhojwani.github.io/sarcasm-detection-and-sentiment-analysis/">
