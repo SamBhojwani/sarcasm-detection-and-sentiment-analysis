@@ -24,6 +24,12 @@ A three-layer NLP system that figures out when *"Oh great, another exam 😒"* i
 
 ## See it in action
 
+<p align="center">
+  <img src="docs/screenshots/analyzer.png" alt="The analyzer flipping a sarcastic sentence from positive to negative, with the signal breakdown" width="82%">
+</p>
+
+*Surface sentiment reads `+0.850` positive. Pragmatics flags four sarcasm signals at 95% confidence, and the true sentiment lands at `-0.680`. Every signal that fired is listed.*
+
 | Input | Surface (lexicon) | True (after analysis) | What flipped it |
 | :-- | :--: | :--: | :-- |
 | `I love this product!` | 🟢 Positive `+0.80` | 🟢 Positive `+0.80` | — *(no sarcasm signals)* |
